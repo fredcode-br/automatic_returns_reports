@@ -175,7 +175,6 @@ def atualizarDados(caminho_arquivo_xlsm, data_inicial, data_final, pasta_destino
     print("Processo concluído!")
 
 def pegar_email(workbook, setor, local = ""):
-    print(local)
     sheetEmails = workbook.Sheets("Emails")
     tabelaEmails = sheetEmails.ListObjects("Tabela_Email_Setor")
 
@@ -189,6 +188,12 @@ def pegar_email(workbook, setor, local = ""):
         Field=2,  # Coluna "Setor"
         Criteria1=setor
     )
+
+    if local != "":
+        tabelaEmails.Range.AutoFilter(
+            Field=1,  # Coluna "Local"
+            Criteria1=local
+        )
 
     # Pegando a primeira linha visível após o filtro
     linhas_visiveis = tabelaEmails.DataBodyRange.SpecialCells(12)
