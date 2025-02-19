@@ -11,6 +11,9 @@ from email.mime.base import MIMEBase
 from email import encoders
 
 
+import sys
+import logging
+
 # Configuração de logging
 logging.basicConfig(
     filename="relatorios.log",
@@ -19,15 +22,17 @@ logging.basicConfig(
     datefmt="%d/%m/%Y %H:%M:%S"
 )
 
-# Redirecionar print para o log
-class LogStream:
+# Criar uma classe para duplicar a saída do print
+class DualStream:
     def write(self, message):
-        if message.strip():  # Evitar linhas em branco
-            logging.info(message.strip())
-    def flush(self):
-        pass  # Necessário para compatibilidade com o sistema
+        logging.info(message)  # Registra no log (mantém linhas em branco)
+        sys.__stdout__.write(message)  # Exibe no terminal
 
-sys.stdout = LogStream()
+    def flush(self):
+        sys.__stdout__.flush()
+
+# Redirecionar stdout para DualStream
+sys.stdout = DualStream()
 
 def enviar_email(destinatario, assunto, corpo, arquivos_anexos):
     try:
@@ -230,4 +235,4 @@ data_inicial = datetime(data_final.year, data_final.month, (data_final.day - 7))
 atualizarDados(caminho_arquivo_xlsm, data_inicial, data_final, pasta_destino)
 
 # Enviar logs do dia
-enviar_logs_do_dia("relatorios@bioleve.com.br")
+# enviar_logs_do_dia("relatorios@bioleve.com.br")
