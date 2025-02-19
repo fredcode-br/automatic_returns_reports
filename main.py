@@ -4,6 +4,7 @@ import smtplib
 import logging
 import sys
 import time
+from win32com.client import constants as xl
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -113,9 +114,6 @@ def atualizarDados(caminho_arquivo_xlsm, data_inicial, data_final, pasta_destino
 
         tabela = sheet.ListObjects("Tabela_Ocorrências")
 
-        sheetEmails = workbook.Sheets("Emails")
-        tabelaEmails = sheetEmails.ListObjects("Tabela_Email_Setor")
-
         coluna_data = 2       # Coluna B = DATA
         coluna_local = 13     # Coluna M = EMISSÃO NF
         coluna_setor = 14     # Coluna N = SETOR RESP.
@@ -138,7 +136,6 @@ def atualizarDados(caminho_arquivo_xlsm, data_inicial, data_final, pasta_destino
         locais = ["LINDÓIA", "SÃO BERNARDO"]
 
         for setor in setores:
-            print(f"Filtrando por setor: {setor}...")
             tabela.Range.AutoFilter(
                 Field=int(coluna_setor),
                 Criteria1=setor
@@ -152,32 +149,20 @@ def atualizarDados(caminho_arquivo_xlsm, data_inicial, data_final, pasta_destino
                         Criteria1=local
                     )
                     relatorio  = relatorios(workbook, "Ocorrências", (setor+"_"+local), pasta_destino)
+                    email_destino = pegar_email(workbook, setor, local) 
             else:
                 print(f"\n***** GERANDO E-MAILS PARA O SETOR {setor} *****\n")
                 relatorio  = relatorios(workbook, "Ocorrências", setor, pasta_destino)
-
-            # Remove todos os filtros antes de aplicar novos
-            if tabelaEmails.ShowAutoFilter:
-                tabela.AutoFilter.ShowAllData()  
-
-            # --- Filtrando o e-mail na Tabela_Email_Setor ---
-            print(f"Buscando e-mail para o setor {setor}...")
-            tabelaEmails.Range.AutoFilter(
-                Field=2,  # Coluna "Setor"
-                Criteria1=setor
-            )
-
-            email_destino = tabelaEmails.DataBodyRange.Cells(1, 3).Value  # Primeira linha, coluna 3 (Email)
-            print(email_destino)   
+                email_destino = pegar_email(workbook, setor) 
 
             if not email_destino:
                 print(f"⚠️ Atenção: Nenhum e-mail encontrado para o setor {setor}.")
                 continue  # Pula para o próximo setor
 
 
-            assunto = f"Relatório Diário de Pedidos"
+            assunto = f"OCORRÊNCIAS DEVOLUÇÕES"
             corpo = (
-                f"Seguem os relatórios de pedidos faturados e em berto para acompanhamento referente ao coordenador.\n\n"
+                f"Segue a relação de ocorrências referente ao seu setor, da semana passada.\n\n"
                 "Favor não responder a este e-mail.\n\n"
                 "Atenciosamente,\nEquipe TI Bioleve"
             )
@@ -189,6 +174,30 @@ def atualizarDados(caminho_arquivo_xlsm, data_inicial, data_final, pasta_destino
 
     print("Processo concluído!")
 
+def pegar_email(workbook, setor, local = ""):
+    print(local)
+    sheetEmails = workbook.Sheets("Emails")
+    tabelaEmails = sheetEmails.ListObjects("Tabela_Email_Setor")
+
+    # Remove todos os filtros antes de aplicar novos
+    if tabelaEmails.ShowAutoFilter:
+        tabelaEmails.AutoFilter.ShowAllData()  
+
+    # --- Filtrando o e-mail na Tabela_Email_Setor ---
+    print(f"Buscando e-mail para o setor {setor}...")
+    tabelaEmails.Range.AutoFilter(
+        Field=2,  # Coluna "Setor"
+        Criteria1=setor
+    )
+
+    # Pegando a primeira linha visível após o filtro
+    linhas_visiveis = tabelaEmails.DataBodyRange.SpecialCells(12)
+    # Pegando o valor da terceira coluna (Email) na primeira linha visível
+    email_destino = linhas_visiveis.Cells(1, 3).Value if linhas_visiveis.Rows.Count > 0 else None
+        
+    print(email_destino) 
+
+    return email_destino
 
 def fechar_instancias_excel():
     os.system("taskkill /f /im excel.exe >nul 2>&1")
